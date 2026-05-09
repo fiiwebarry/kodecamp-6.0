@@ -1,0 +1,28 @@
+a. String Data Type
+A string is a data type used to store text or characters. Strings are usually written inside quotation marks (" " or ' ').
+Example: "Hello" or 'Computer'.
+Three methods used with strings:
+length() – Returns the number of characters in a string.
+Example: "Hello".length() → 5
+
+toUpperCase() – Converts all letters to uppercase.
+Example: "hello".toUpperCase() → "HELLO"
+
+substring() – Extracts part of a string.
+Example: "Computer".substring(0,4) → "Comp"
+
+
+b. Number Data Type
+A number data type is used to store numeric values such as integers and decimals.
+Examples: 10, 45.7, -3.
+Three methods used with numbers:
+toFixed() – Rounds a number to a specified number of decimal places.
+Example: 5.678.toFixed(2) → 5.68
+
+toString() – Converts a number to a string.
+Example: (100).toString() → "100"
+
+valueOf() – Returns the primitive value of a number.
+Example: (50).valueOf() → 50
+
+........,..........
