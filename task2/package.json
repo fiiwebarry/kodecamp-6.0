@@ -1,0 +1,13 @@
+{
+  "name": "task2",
+  "version": "1.0.0",
+  "description": "1. Write a function that accepts a 2 dimentional array and returns a flatten array as its value. Do not use the .flat() function when carrying out this task.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
