@@ -1,17 +1,18 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  Entity,
   OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 import { Product } from '../products/product.entity';
 
 import { Role } from './role.enum';
 
-@Entity()
+@Entity({ name: 'users' })
 export class User {
-
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -21,7 +22,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ select: false })
   password: string;
 
   @Column({
@@ -31,15 +32,19 @@ export class User {
   })
   role: Role;
 
-  @Column({ nullable: true })
-  resetToken: string;
+  @Column({ type: 'varchar', nullable: true, select: false })
+  resetToken: string | null;
 
-  @Column({
-    type: 'timestamp',
-    nullable: true,
-  })
-  resetTokenExpiry: Date;
+  @Column({ type: 'timestamptz', nullable: true, select: false })
+  resetTokenExpiry: Date | null;
 
-  @OneToMany(() => Product, product => product.admin)
+  // An admin can have many products.
+  @OneToMany(() => Product, (product) => product.admin)
   products: Product[];
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updatedAt: Date;
 }

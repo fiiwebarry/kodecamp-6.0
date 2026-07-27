@@ -1,98 +1,129 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Task 6 — Auth, roles and product ownership
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+E-commerce API built with NestJS, TypeORM and PostgreSQL. Adds authentication,
+an admin role, password reset, and ties every product to the admin that created
+it.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Setup
 
 ```bash
-$ pnpm install
+pnpm install
 ```
 
-## Compile and run the project
+Create a `.env` file:
+
+```
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=password
+DB_NAME=ecommerce
+
+JWT_SECRET=mysecret
+JWT_EXPIRES=1d
+```
+
+Then run it:
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm run start:dev     # watch mode
+pnpm run start:prod    # production
+pnpm run test          # unit tests
+pnpm run lint          # eslint
 ```
 
-## Run tests
+## Routes
 
-```bash
-# unit tests
-$ pnpm run test
+### Users
 
-# e2e tests
-$ pnpm run test:e2e
+| Method | Path               | Auth   | Body                    |
+| ------ | ------------------ | ------ | ----------------------- |
+| POST   | `/register`        | public | `fullname, email, password` |
+| POST   | `/login`           | public | `email, password`       |
+| POST   | `/forget-password` | public | `email`                 |
+| POST   | `/reset-password`  | public | `token, password`       |
 
-# test coverage
-$ pnpm run test:cov
+### Admins
+
+| Method | Path              | Auth   | Body                        |
+| ------ | ----------------- | ------ | --------------------------- |
+| POST   | `/admin/register` | public | `fullname, email, password` |
+| POST   | `/admin/login`    | public | `email, password`           |
+
+`/admin/login` only issues a token to an account whose role is `ADMIN`. A normal
+user with correct credentials is rejected.
+
+### Products
+
+| Method | Path                   | Auth              |
+| ------ | ---------------------- | ----------------- |
+| GET    | `/products`            | public            |
+| GET    | `/products/:product_id`| public            |
+| POST   | `/products`            | logged-in + ADMIN |
+| PUT    | `/products/:product_id`| logged-in + ADMIN |
+| DELETE | `/products/:product_id`| logged-in + ADMIN |
+
+`GET /products` supports `?page=` and `?limit=`.
+
+Send the token from login as `Authorization: Bearer <access_token>`.
+
+## Auth and role decorators
+
+- `JwtAuthGuard` (`src/auth/guards/jwt-auth.guard.ts`) — validates the bearer
+  token and attaches the user to the request.
+- `@Roles(...)` (`src/auth/decorators/roles.decorator.ts`) — marks a handler
+  with the roles allowed to reach it.
+- `RolesGuard` (`src/auth/guards/roles.guard.ts`) — reads that metadata.
+  401 when nobody is logged in, 403 when the role does not match.
+- `@CurrentUser()` (`src/auth/decorators/current-user.decorator.ts`) — reads the
+  logged-in user (or one field of it) off the request.
+
+The write routes combine them:
+
+```ts
+@Post()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
+create(@Body() dto: CreateProductDto, @CurrentUser('id') adminId: number) {
+  return this.productsService.create(dto, adminId);
+}
 ```
 
-## Deployment
+Guard order matters — `JwtAuthGuard` has to run first so `RolesGuard` has a user
+to inspect.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Product ownership
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+`Product` has an `admin_id` column and a `ManyToOne` relation to `User`, matched
+by a `OneToMany` on the user side, so one admin has many products. The id is
+taken from the JWT of the admin making the request, never from the request body.
 
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+```ts
+@ManyToOne(() => User, (user) => user.products, { nullable: false, onDelete: 'CASCADE' })
+@JoinColumn({ name: 'admin_id' })
+admin: User;
+
+@Column({ name: 'admin_id' })
+adminId: number;
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Password reset flow
 
-## Resources
+1. `POST /forget-password` with an email. A random token is generated, its
+   SHA-256 hash is stored on the user with a 15-minute expiry, and the raw token
+   is returned in the response — there is no mail service in this project, so in
+   production this would be emailed instead.
+2. `POST /reset-password` with that token and a new password. The token is
+   hashed, looked up, checked against its expiry, then cleared.
 
-Check out a few resources that may come in handy when working with NestJS:
+The response to `/forget-password` is identical for known and unknown emails, so
+the route cannot be used to find out which addresses are registered.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Notes
 
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- Passwords are hashed with bcrypt and the `password`, `resetToken` and
+  `resetTokenExpiry` columns are `select: false`, so they are never returned by
+  an ordinary query.
+- Login failures use one message for both "no such user" and "wrong password".
+- `synchronize: true` is on for development convenience; use migrations for
+  anything real.
